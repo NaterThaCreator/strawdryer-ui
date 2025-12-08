@@ -142,4 +142,346 @@
     .btn-main:hover {
       background: #55ffff;
       box-shadow: 0 0 15px var(--primary);
-      transform: translateY(-1px
+      transform: translateY(-1px);
+    }
+    .btn-main:active {
+      transform: translateY(0);
+    }
+
+    .btn-stop {
+      background: transparent;
+      border: 1px solid var(--secondary);
+      color: var(--secondary);
+    }
+    .btn-stop:hover {
+      background: rgba(255, 0, 127, 0.1);
+      box-shadow: 0 0 15px var(--secondary);
+    }
+
+    /* PIN overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      backdrop-filter: blur(6px);
+    }
+    .overlay-card {
+      background: #050814;
+      padding: 20px 18px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      width: 260px;
+      text-align: center;
+    }
+    .overlay-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.1em;
+      color: var(--primary);
+    }
+    .overlay-card p {
+      margin: 0 0 12px;
+      font-size: 0.8em;
+      color: #aaa;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: #080c20;
+      color: #fff;
+      font-size: 0.95em;
+      outline: none;
+    }
+    .pin-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px rgba(0, 234, 255, 0.5);
+    }
+    .pin-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 999px;
+      border: none;
+      background: var(--primary);
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .pin-error {
+      margin-top: 6px;
+      min-height: 16px;
+      font-size: 0.78em;
+      color: #ff6b85;
+    }
+  </style>
+</head>
+<body>
+  <!-- PIN overlay -->
+  <div class="overlay" id="pinOverlay">
+    <div class="overlay-card">
+      <h3>Enter Control PIN</h3>
+      <p>Only devices with the correct PIN can send commands.</p>
+      <input id="pinInput" class="pin-input" type="password" placeholder="Enter PIN" />
+      <button id="pinButton" class="pin-btn">Unlock</button>
+      <div id="pinError" class="pin-error"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>Dryer Control</h2>
+    <div id="statusText" class="status off">SYSTEM STANDBY</div>
+
+    <div class="fan-viz">
+      <div class="blades" id="fanBlades"></div>
+    </div>
+
+    <div class="speed-grid">
+      <button class="speed-btn" id="btnLow">LOW</button>
+      <button class="speed-btn" id="btnMed">MED</button>
+      <button class="speed-btn" id="btnHigh">MAX</button>
+    </div>
+
+    <div class="slider-container">
+      <input type="range" id="timeSlider" min="1" max="60" value="10">
+      <div class="slider-label">
+        <span id="tVal">10</span> SECONDS DURATION
+      </div>
+    </div>
+
+    <button class="btn-main" id="engageBtn">ENGAGE</button>
+    <button class="btn-main btn-stop" id="abortBtn">ABORT</button>
+  </div>
+
+  <script>
+    const BACKEND = "https://rapid-star-f817.fieldsnathanj.workers.dev";
+
+    // ---- PIN handling ----
+    let uiPin = "";
+    const pinOverlay = document.getElementById("pinOverlay");
+    const pinInput   = document.getElementById("pinInput");
+    const pinButton  = document.getElementById("pinButton");
+    const pinError   = document.getElementById("pinError");
+
+    pinButton.addEventListener("click", () => {
+      const entered = pinInput.value.trim();
+      if (!entered) {
+        pinError.textContent = "PIN required.";
+        return;
+      }
+      if (entered !== "straw") {
+        pinError.textContent = "Incorrect PIN.";
+        return;
+      }
+      uiPin = entered;
+      pinOverlay.style.display = "none";
+    });
+
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") pinButton.click();
+    });
+
+    // ---- UI state ----
+    const statusText = document.getElementById("statusText");
+    const fanBlades  = document.getElementById("fanBlades");
+    const timeSlider = document.getElementById("timeSlider");
+    const tVal       = document.getElementById("tVal");
+    const btnLow     = document.getElementById("btnLow");
+    const btnMed     = document.getElementById("btnMed");
+    const btnHigh    = document.getElementById("btnHigh");
+    const engageBtn  = document.getElementById("engageBtn");
+    const abortBtn   = document.getElementById("abortBtn");
+
+    let selectedSpeed = "med";  // "low" | "med" | "high"
+    let running = false;
+    let rotation = 0;
+    let rotationSpeed = 0;      // degrees per frame
+    let animId = null;
+    let countdownTimer = null;
+    let remainingSec = 0;
+
+    const SPEED_PWM = {
+      low:  80,
+      med:  160,
+      high: 255
+    };
+
+    const SPEED_ROTATION = {
+      low:  4,   // degrees per frame
+      med:  8,
+      high: 14
+    };
+
+    function updateSpeedButtons() {
+      [btnLow, btnMed, btnHigh].forEach(b => b.classList.remove("active"));
+      if (selectedSpeed === "low")  btnLow.classList.add("active");
+      if (selectedSpeed === "med")  btnMed.classList.add("active");
+      if (selectedSpeed === "high") btnHigh.classList.add("active");
+    }
+
+    btnLow.addEventListener("click", () => {
+      selectedSpeed = "low";
+      updateSpeedButtons();
+      updateFanGlow();
+    });
+    btnMed.addEventListener("click", () => {
+      selectedSpeed = "med";
+      updateSpeedButtons();
+      updateFanGlow();
+    });
+    btnHigh.addEventListener("click", () => {
+      selectedSpeed = "high";
+      updateSpeedButtons();
+      updateFanGlow();
+    });
+
+    function updateTimerLabel() {
+      const sec = parseInt(timeSlider.value, 10) || 1;
+      tVal.textContent = sec;
+    }
+
+    timeSlider.addEventListener("input", updateTimerLabel);
+    updateTimerLabel();
+
+    function updateFanGlow() {
+      fanBlades.classList.remove("shadow-low", "shadow-med", "shadow-high");
+      if (!running) return;
+      if (selectedSpeed === "low")  fanBlades.classList.add("shadow-low");
+      if (selectedSpeed === "med")  fanBlades.classList.add("shadow-med");
+      if (selectedSpeed === "high") fanBlades.classList.add("shadow-high");
+    }
+
+    function setStatus(text, isOn) {
+      statusText.textContent = text;
+      if (isOn) statusText.classList.remove("off");
+      else      statusText.classList.add("off");
+    }
+
+    // ---- Fan animation loop ----
+    function animateFan() {
+      if (!running) {
+        rotationSpeed = 0;
+        fanBlades.style.transform = "rotate(0deg)";
+        animId = null;
+        return;
+      }
+      rotation = (rotation + rotationSpeed) % 360;
+      fanBlades.style.transform = "rotate(" + rotation + "deg)";
+      animId = requestAnimationFrame(animateFan);
+    }
+
+    function startFanVisual() {
+      running = true;
+      rotationSpeed = SPEED_ROTATION[selectedSpeed] || SPEED_ROTATION.med;
+      updateFanGlow();
+      if (!animId) {
+        animId = requestAnimationFrame(animateFan);
+      }
+    }
+
+    function stopFanVisual() {
+      running = false;
+      fanBlades.classList.remove("shadow-low", "shadow-med", "shadow-high");
+      if (animId) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+      fanBlades.style.transform = "rotate(0deg)";
+    }
+
+    function startCountdown(sec) {
+      if (countdownTimer) clearInterval(countdownTimer);
+      remainingSec = sec;
+
+      countdownTimer = setInterval(() => {
+        remainingSec--;
+        if (remainingSec <= 0) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          setStatus("SYSTEM STANDBY", false);
+          stopFanVisual();
+          return;
+        }
+        setStatus(
+          "RUNNING (" + selectedSpeed.toUpperCase() + ") - " +
+          remainingSec + "s LEFT",
+          true
+        );
+      }, 1000);
+    }
+
+    // ---- Send commands to Cloudflare Worker ----
+    function sendCommand(action, pwm, seconds) {
+      if (!uiPin) {
+        alert("Enter PIN first.");
+        return;
+      }
+
+      const body = {
+        password: uiPin,
+        action: action,
+        speed: pwm,
+        time: seconds
+      };
+
+      fetch(BACKEND + "/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+      .then(res => {
+        if (res.status === 401) {
+          setStatus("PIN REJECTED BY BACKEND", false);
+          return;
+        }
+        if (!res.ok) {
+          setStatus("BACKEND ERROR " + res.status, false);
+          return;
+        }
+
+        if (action === "START") {
+          startFanVisual();
+          setStatus(
+            "RUNNING (" + selectedSpeed.toUpperCase() + ") - " +
+            seconds + "s LEFT",
+            true
+          );
+          startCountdown(seconds);
+        } else if (action === "STOP" || action === "CLEAR") {
+          if (countdownTimer) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+          }
+          stopFanVisual();
+          setStatus("SYSTEM STANDBY", false);
+        }
+      })
+      .catch(() => {
+        setStatus("NETWORK ERROR", false);
+      });
+    }
+
+    // ---- Button actions ----
+    engageBtn.addEventListener("click", () => {
+      const seconds = parseInt(timeSlider.value, 10) || 1;
+      const pwm = SPEED_PWM[selectedSpeed] || SPEED_PWM.med;
+      sendCommand("START", pwm, seconds);
+    });
+
+    abortBtn.addEventListener("click", () => {
+      sendCommand("STOP", 0, 0);
+    });
+
+    // Initial visual state
+    selectedSpeed = "med";
+    updateSpeedButtons();
+    setStatus("SYSTEM STANDBY", false);
+    stopFanVisual();
+  </script>
+</body>
+</html>
