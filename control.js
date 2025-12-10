@@ -1,71 +1,105 @@
-// control.js
+// control.js - SIMPLIFIED TO TALK TO CLOUDFLARE WORKER
 
-// --- YOUR ADAFRUIT IO CREDENTIALS (MUST MATCH ESP32) ---
-const AIO_USERNAME = "naterthacreator";
-const AIO_KEY = "aio_hgeg007pyt5eeauywpR86J6tdFjX";
-const AIO_SERVER = "io.adafruit.com";
-const AIO_FEED_CONTROL = AIO_USERNAME + "/feeds/straw-dryer-control";
+// *** CRITICAL: REPLACE THIS WITH YOUR CLOUDFLARE WORKER'S URL ***
+// Example: https://straw-dryer-proxy.naterthacreator.workers.dev
+const WORKER_URL = "YOUR_CLOUDFLARE_WORKER_URL_HERE"; 
 
 // --- UI Elements ---
 const blades = document.getElementById('fanBlades');
 const label = document.getElementById('statusLabel');
 const dot = document.getElementById('connDot');
+const timeReadout = document.getElementById('timeReadout'); 
+const slider = document.getElementById('slider'); 
 
-// 1. MQTT Connection Setup
-// Use port 443 for secure WebSocket connection
-const client = new Paho.MQTT.Client(AIO_SERVER, 443, "/mqtt", "web-client-" + Math.random()); 
+// --- Timer Variables ---
+let countdownInterval = null;
+let timeLeftSeconds = 0;
 
-// Set callback handlers
-client.onConnectionLost = onConnectionLost;
-client.onMessageArrived = onMessageArrived; 
-client.connect({ onSuccess: onConnect, useSSL: true, userName: AIO_USERNAME, password: AIO_KEY });
+// Set initial UI state
+document.addEventListener('DOMContentLoaded', setStandbyUI);
 
-// 2. MQTT Event Handlers
-function onConnect() {
-    console.log("MQTT Connected!");
-    dot.classList.add('connected');
+// 1. Command Sender Function (Called by your HTML buttons)
+function sendCommand(command) {
+    dot.classList.remove('connected'); // Show connection activity immediately
+    label.innerText = `SENDING ${command}...`;
+    label.style.color = "var(--primary)";
+
+    // Append the command to the Worker's URL
+    const fetchURL = `${WORKER_URL}?command=${command}`;
+    
+    fetch(fetchURL)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            return response.text();
+        })
+        .then(() => {
+            // Success: Update UI instantly and manage timer
+            dot.classList.add('connected');
+            if (command === 'ON') {
+                const durationMinutes = parseInt(slider.value); 
+                setRunningUI(durationMinutes);
+            } else if (command === 'OFF') {
+                setStandbyUI();
+            }
+        })
+        .catch(error => {
+            // Failure: Show error state
+            dot.classList.remove('connected');
+            label.innerText = `ERROR: ${error.message}`;
+            label.style.color = "var(--danger)";
+            blades.classList.remove('spinning');
+            stopCountdown();
+        });
+}
+
+// 2. UI State Management Functions
+function setRunningUI(durationMinutes) {
+    blades.classList.add('spinning');
+    label.innerText = "SYSTEM ENGAGED";
+    label.style.color = "var(--primary)";
+
+    timeLeftSeconds = durationMinutes * 60;
+    startCountdown();
+}
+
+function setStandbyUI() {
+    blades.classList.remove('spinning');
     label.innerText = "SYSTEM STANDBY";
     label.style.color = "var(--text)";
-    
-    // Subscribe is not strictly necessary for just sending commands, but good practice
-    client.subscribe(AIO_FEED_CONTROL); 
+
+    stopCountdown();
+    const minutes = parseInt(slider.value);
+    timeReadout.innerText = minutes + "m";
 }
 
-function onConnectionLost(responseObject) {
-    console.error("Connection Lost: " + responseObject.errorMessage);
-    dot.classList.remove('connected');
-    label.innerText = "DISCONNECTED";
-    label.style.color = "var(--danger)";
-    blades.classList.remove('spinning');
-}
+// 3. Countdown Logic
+function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
 
-function onMessageArrived(message) {
-    // This is where you would process status messages FROM the ESP32 (future state)
-    console.log("Status Message Arrived on Topic " + message.destinationName + ": " + message.payloadString);
-}
+    countdownInterval = setInterval(() => {
+        timeLeftSeconds--;
 
-// 3. Command Sender Function (Called by your HTML buttons)
-function sendCommand(command) {
-    if (client.isConnected()) {
-        const message = new Paho.MQTT.Message(command);
-        message.destinationName = AIO_FEED_CONTROL; 
-        client.send(message);
-        console.log(`Sent command: ${command}`);
-
-        // Update UI instantly for instant visual feedback
-        if (command === 'ON') {
-            blades.classList.add('spinning');
-            label.innerText = "SYSTEM ENGAGED";
-            label.style.color = "var(--primary)";
-        } else if (command === 'OFF') {
-            blades.classList.remove('spinning');
-            label.innerText = "SYSTEM STANDBY";
-            label.style.color = "var(--text)";
+        if (timeLeftSeconds <= 0) {
+            clearInterval(countdownInterval);
+            timeLeftSeconds = 0;
+            // Send the OFF command to ensure the ESP32 turns off when the timer expires
+            sendCommand('OFF'); 
+            // Note: sendCommand calls setStandbyUI on success
+            return;
         }
-    } else {
-        console.error("MQTT client not connected! Please check console for details.");
-        label.innerText = "ERROR: NOT CONNECTED";
-        label.style.color = "var(--danger)";
-        blades.classList.remove('spinning');
+
+        const minutes = Math.floor(timeLeftSeconds / 60);
+        const seconds = timeLeftSeconds % 60;
+        
+        // Format the time as M:SS
+        label.innerText = `ENGAGED - ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+    }, 1000);
+}
+
+function stopCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
     }
 }
