@@ -2,98 +2,391 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STRAW DRYER - CLOUD</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>STRAW DRYER - NEON</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
   
   <style>
-    /* CYBERPUNK STYLING */
-    :root { --bg: #050508; --panel: #0e0e15; --primary: #00ffcc; --danger: #ff0055; --text: #e0e0ff; }
+    /* --- CYBERPUNK CORE STYLES --- */
+    :root { 
+      --bg: #020204; 
+      --panel: rgba(20, 20, 30, 0.85); 
+      --primary: #00ffcc; 
+      --accent: #d600ff;
+      --danger: #ff2a2a; 
+      --text: #e0e0ff; 
+    }
     
     body { 
-      margin: 0; padding: 0; background: radial-gradient(circle at center, #151520 0%, var(--bg) 100%); 
-      color: var(--text); font-family: 'Roboto Mono', monospace; 
-      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; 
+      margin: 0; padding: 0; 
+      background-color: var(--bg);
+      background-image: 
+        linear-gradient(rgba(0, 255, 204, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 204, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: var(--text); 
+      font-family: 'Rajdhani', sans-serif; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center; 
+      min-height: 100vh; 
+      overflow: hidden; 
     }
 
+    /* RAIN CONTAINER */
+    #rain-container {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        pointer-events: none; z-index: 1; overflow: hidden;
+    }
+
+    /* FIRE CANVAS */
+    #fire-canvas {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        pointer-events: none; z-index: 2; /* In front of straws, behind UI */
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+
+    .straw {
+      position: absolute;
+      width: 6px; height: 50px;
+      border-radius: 3px;
+      opacity: 0.8;
+      box-shadow: 0 0 8px rgba(255,255,255,0.3);
+      transform-origin: center;
+    }
+
+    /* ASH ANIMATION KEYFRAMES */
+    @keyframes disintegrate {
+      0% { transform: scale(1); background: #333; opacity: 1; }
+      100% { transform: scale(0) rotate(20deg); background: #000; opacity: 0; }
+    }
+
+    .burning {
+      /* Turn into ash/soot */
+      animation: disintegrate 1s ease-out forwards !important;
+      background: #222 !important; /* Ash color */
+      box-shadow: none !important;
+      border: 1px solid #ff4400; /* Glowing edges */
+      transition: none !important;
+    }
+
+    /* MAIN PANEL */
     .container { 
-      width: 90%; max-width: 420px; background: var(--panel); padding: 40px; 
-      border: 1px solid #333; border-radius: 12px; 
-      box-shadow: 0 0 60px rgba(0, 255, 204, 0.05); 
-      text-align: center; position: relative;
+      width: 90%; max-width: 450px; 
+      background: var(--panel); 
+      padding: 40px 30px; 
+      border: 1px solid rgba(0, 255, 204, 0.3); 
+      border-radius: 16px; 
+      box-shadow: 0 0 80px rgba(0, 255, 204, 0.1), inset 0 0 20px rgba(0,0,0,0.8); 
+      text-align: center; 
+      position: relative;
+      backdrop-filter: blur(10px);
+      z-index: 10; 
     }
 
-    /* Health Dots styling */
     .connection-status-group {
         position: absolute; top: 20px; right: 20px; 
         display: flex; gap: 8px; align-items: center;
+        background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 20px;
+        border: 1px solid #333;
     }
     .connection-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #333; transition: all 0.3s;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #444; transition: all 0.3s;
+      box-shadow: 0 0 5px #000;
     }
-    .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
-    .dot-label { font-size: 0.7em; margin-right: 2px; color: #888; }
+    .connected { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+    .dot-label { font-size: 0.8em; color: #888; font-weight: 700; letter-spacing: 1px; }
 
-    h2 { font-family: 'Orbitron', sans-serif; color: var(--primary); letter-spacing: 2px; margin-bottom: 40px; }
+    h2 { 
+      font-family: 'Orbitron', sans-serif; color: var(--primary); 
+      letter-spacing: 4px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+      font-size: 1.8em;
+    }
+    .subtitle { color: var(--accent); font-size: 0.9em; letter-spacing: 2px; margin-bottom: 30px; text-transform: uppercase; }
 
     .fan-viz { 
-      width: 140px; height: 140px; margin: 0 auto 40px; 
-      border: 4px solid #1c1c28; border-radius: 50%; 
-      display: flex; justify-content: center; align-items: center; background: #000;
+      width: 160px; height: 160px; margin: 0 auto 25px; 
+      border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; 
+      display: flex; justify-content: center; align-items: center; 
+      background: radial-gradient(circle, #222 0%, #000 100%);
+      box-shadow: inset 0 0 20px #000;
     }
 
     .blades { 
       width: 90%; height: 90%; 
-      background: conic-gradient(from 0deg, var(--primary) 0deg 30deg, transparent 30deg 120deg, var(--primary) 120deg 150deg, transparent 150deg 240deg, var(--primary) 240deg 270deg, transparent 270deg 360deg);
-      border-radius: 50%; opacity: 0.3; transition: opacity 0.3s;
+      background: conic-gradient(from 0deg, 
+        var(--primary) 0deg 30deg, transparent 30deg 120deg, 
+        var(--primary) 120deg 150deg, transparent 150deg 240deg, 
+        var(--primary) 240deg 270deg, transparent 270deg 360deg);
+      border-radius: 50%; opacity: 0.2; transition: opacity 0.5s;
+      filter: drop-shadow(0 0 5px var(--primary));
     }
 
-    .spinning { animation: spin 0.2s linear infinite; opacity: 1; box-shadow: 0 0 30px var(--primary); } 
+    .spinning { animation: spin 0.5s linear infinite; opacity: 1; filter: drop-shadow(0 0 15px var(--primary)); } 
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    .btn-group { display: flex; gap: 15px; margin-top: 30px;}
-    button {
-      flex: 1; padding: 20px; border: none; border-radius: 6px; 
-      font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 0.9em; cursor: pointer;
-    }
-    .btn-start { background: var(--primary); color: #000; }
-    .btn-stop { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+    #statusLabel { font-family: 'Orbitron', sans-serif; font-size: 1.1em; margin-bottom: 20px; min-height: 1.5em; color: #666; }
 
-    #statusLabel { font-size: 1.2em; font-weight: bold; color: var(--text); }
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 20px 0; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 10px; background: var(--primary); cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px var(--primary); }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; }
+
+    #timeReadout { font-family:'Orbitron', sans-serif; font-size: 2.5em; color: var(--text); margin-bottom: 30px; }
+
+    .btn-group { display: flex; gap: 15px; }
+    button {
+      flex: 1; padding: 20px; border: none; border-radius: 4px; 
+      font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 1em; 
+      cursor: pointer; transition: all 0.2s; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .btn-start { background: rgba(0, 255, 204, 0.1); color: var(--primary); border: 1px solid var(--primary); box-shadow: 0 0 10px rgba(0, 255, 204, 0.1); }
+    .btn-start:active { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
+    .btn-stop { background: rgba(255, 42, 42, 0.1); color: var(--danger); border: 1px solid var(--danger); }
+    .btn-stop:active { background: var(--danger); color: #000; box-shadow: 0 0 30px var(--danger); }
   </style>
 </head>
 <body>
 
+  <div id="rain-container"></div>
+  <canvas id="fire-canvas"></canvas>
+
   <div class="container">
-    
     <div class="connection-status-group">
-        <span class="dot-label">CF Proxy</span><div class="connection-dot" id="workerDot"></div>
-        <span class="dot-label">ESP32</span><div class="connection-dot" id="deviceDot"></div>
+        <div class="connection-dot" id="workerDot"></div>
+        <span class="dot-label">NET LINK</span>
     </div>
 
     <h2>STRAW DRYER</h2>
-    <div class="fan-viz"><div class="blades" id="fanBlades"></div></div>
-    <div id="statusLabel">LOADING STATUS...</div>
+    <div class="subtitle">Mk-II Vaporizer System</div>
 
-    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)" style="width:100%; margin-top: 20px; accent-color: #00ffcc;">
-    <div id="timeReadout" style="font-family:'Orbitron', sans-serif; font-size: 1.5em; margin-bottom: 20px;">10m</div>
+    <div class="fan-viz"><div class="blades" id="fanBlades"></div></div>
+    
+    <div id="statusLabel">SYSTEM READY</div>
+
+    <div id="timeReadout">10<span style="font-size:0.4em">MIN</span></div>
+    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)">
 
     <div class="btn-group">
-      <button class="btn-start" onclick="sendCommand('ON')">ENGAGE</button>
+      <button class="btn-start" onclick="sendCommand('ON')">ACTIVATE</button>
       <button class="btn-stop" onclick="sendCommand('OFF')">ABORT</button>
     </div>
   </div>
 
-  <script src="control.js" type="text/javascript"></script>
-
   <script>
-    // Simple slider label update
-    let sliderVal = 10;
-    function updateLabel(val) {
-      sliderVal = val;
-      document.getElementById('timeReadout').innerText = val + "m";
+    // *** CONFIGURATION ***
+    const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev"; 
+
+    // *** UI ELEMENTS ***
+    const blades = document.getElementById('fanBlades');
+    const label = document.getElementById('statusLabel');
+    const workerDot = document.getElementById('workerDot'); 
+    const timeReadout = document.getElementById('timeReadout'); 
+    const slider = document.getElementById('slider'); 
+    const rainContainer = document.getElementById('rain-container');
+    const fireCanvas = document.getElementById('fire-canvas');
+    const ctx = fireCanvas.getContext('2d');
+
+    let countdownInterval = null;
+    let timeLeftSeconds = 0;
+    let rainInterval = null;
+    const colors = ['#ff0055', '#00ffcc', '#d600ff', '#ffee00', '#0099ff'];
+
+    // --- FIRE PARTICLE SYSTEM ---
+    let fireParticles = [];
+    let fireAnimationId = null;
+    let isFireActive = false;
+
+    function resizeCanvas() {
+        fireCanvas.width = window.innerWidth;
+        fireCanvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * fireCanvas.width;
+            this.y = fireCanvas.height;
+            this.size = Math.random() * 20 + 10;
+            this.speedY = Math.random() * 5 + 3;
+            this.speedX = (Math.random() - 0.5) * 2;
+            this.color = { r: 255, g: 150, b: 0, a: 1 }; // Start Orange
+            this.decay = Math.random() * 0.02 + 0.01;
+        }
+        update() {
+            this.y -= this.speedY;
+            this.x += this.speedX;
+            this.size -= 0.1;
+            this.color.a -= this.decay;
+            
+            // Color shift: White -> Yellow -> Orange -> Red -> Dark
+            if(this.color.a > 0.8) { this.color.r = 255; this.color.g = 255; this.color.b = 200; } // White/Yellow hot
+            else if(this.color.a > 0.5) { this.color.r = 255; this.color.g = 140; this.color.b = 0; } // Orange
+            else { this.color.r = 200; this.color.g = 50; this.color.b = 0; } // Red/Smoke
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${this.color.r},${this.color.g},${this.color.b},${this.color.a})`;
+            ctx.fill();
+        }
+    }
+
+    function animateFire() {
+        ctx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+        
+        // Spawn new particles if active
+        if(isFireActive) {
+            for(let i=0; i<15; i++) fireParticles.push(new Particle());
+        }
+
+        // Update and draw
+        for (let i = 0; i < fireParticles.length; i++) {
+            fireParticles[i].update();
+            fireParticles[i].draw();
+            if (fireParticles[i].size <= 0.2 || fireParticles[i].color.a <= 0) {
+                fireParticles.splice(i, 1);
+                i--;
+            }
+        }
+
+        if (fireParticles.length > 0 || isFireActive) {
+            fireAnimationId = requestAnimationFrame(animateFire);
+        }
+    }
+
+    // --- HEALTH CHECK ---
+    function pollWorkerHealth() {
+        fetch(WORKER_URL + '?command=HEALTH_CHECK') 
+            .then(r => r.ok ? workerDot.classList.add('connected') : workerDot.classList.remove('connected'))
+            .catch(() => workerDot.classList.remove('connected'));
+    }
+
+    // --- COMMAND SENDER ---
+    function sendCommand(command) {
+        const fetchURL = `${WORKER_URL}?command=${command}`;
+        
+        label.innerText = `TRANSMITTING...`;
+        label.style.color = "var(--primary)";
+
+        if (command === 'ON') {
+            const durationMinutes = parseInt(slider.value); 
+            setRunningUI(durationMinutes);
+        } else if (command === 'OFF') {
+            setStandbyUI();
+        }
+
+        fetch(fetchURL).catch(e => {
+            label.innerText = "LINK FAILURE";
+            label.style.color = "var(--danger)";
+        });
+    }
+
+    // --- STATE MANAGERS ---
+    function setRunningUI(durationMinutes) {
+        blades.classList.add('spinning');
+        label.innerText = "SYSTEM ACTIVE";
+        label.style.color = "var(--primary)";
+        startRainEffect();
+        timeLeftSeconds = durationMinutes * 60;
+        startCountdown();
+    }
+
+    function setStandbyUI() {
+        blades.classList.remove('spinning');
+        label.innerText = "SYSTEM STANDBY";
+        label.style.color = "#666";
+        triggerFireEffect(); 
+        stopCountdown();
+        const minutes = parseInt(slider.value);
+        timeReadout.innerHTML = minutes + "<span style='font-size:0.4em'>MIN</span>";
+    }
+
+    // --- TIMER ---
+    function startCountdown() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+            timeLeftSeconds--;
+            if (timeLeftSeconds <= 0) {
+                sendCommand('OFF'); 
+                return;
+            }
+            const m = Math.floor(timeLeftSeconds / 60);
+            const s = timeLeftSeconds % 60;
+            timeReadout.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }, 1000);
+    }
+
+    function stopCountdown() {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+    }
+
+    // --- ANIMATIONS ---
+    function updateLabel(val) {
+        document.getElementById('timeReadout').innerHTML = val + "<span style='font-size:0.4em'>MIN</span>";
+    }
+
+    function startRainEffect() {
+      if(rainInterval) return;
+      rainInterval = setInterval(() => {
+        const straw = document.createElement('div');
+        straw.classList.add('straw');
+        straw.style.left = Math.random() * 100 + 'vw';
+        straw.style.top = '-60px';
+        straw.style.background = colors[Math.floor(Math.random() * colors.length)];
+        straw.style.transform = `rotate(${Math.random() * 360}deg)`;
+        
+        const duration = 1 + Math.random() * 2;
+        straw.style.transition = `top ${duration}s linear`;
+        
+        rainContainer.appendChild(straw);
+
+        setTimeout(() => {
+          straw.style.top = (85 + Math.random() * 13) + 'vh'; 
+        }, 50);
+
+        if(rainContainer.children.length > 300) {
+          rainContainer.removeChild(rainContainer.firstChild);
+        }
+      }, 80); 
+    }
+
+    function triggerFireEffect() {
+      // 1. Stop Rain
+      if(rainInterval) {
+        clearInterval(rainInterval);
+        rainInterval = null;
+      }
+      
+      // 2. Start Canvas Fire
+      isFireActive = true;
+      fireCanvas.style.opacity = 1;
+      animateFire();
+
+      // 3. Turn Straws to Ash
+      const straws = document.querySelectorAll('.straw');
+      straws.forEach((straw, index) => {
+        // Clear falling transition so they stop moving and just burn
+        straw.style.transition = ''; 
+        setTimeout(() => { 
+            straw.classList.add('burning'); 
+        }, index * 2);
+      });
+
+      // 4. Cleanup
+      setTimeout(() => { 
+          isFireActive = false; // Stop spawning fire
+          fireCanvas.style.opacity = 0; // Fade out fire
+          rainContainer.innerHTML = ''; // Delete ash
+      }, 3500); // 3.5 seconds of glory
+    }
+
+    // --- INIT ---
+    setInterval(pollWorkerHealth, 5000);   
+    pollWorkerHealth(); 
   </script>
 </body>
 </html>
