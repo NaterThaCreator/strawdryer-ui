@@ -17,17 +17,17 @@ const client = new Paho.MQTT.Client(AIO_SERVER, 443, "/mqtt", "web-client-" + Ma
 
 // Set callback handlers
 client.onConnectionLost = onConnectionLost;
-client.onMessageArrived = onMessageArrived; // Not used for control, but kept for future status updates
+client.onMessageArrived = onMessageArrived; 
 client.connect({ onSuccess: onConnect, useSSL: true, userName: AIO_USERNAME, password: AIO_KEY });
 
 // 2. MQTT Event Handlers
 function onConnect() {
     console.log("MQTT Connected!");
     dot.classList.add('connected');
-    label.innerText = "STANDBY";
+    label.innerText = "SYSTEM STANDBY";
     label.style.color = "var(--text)";
     
-    // Subscribe is not needed unless the ESP32 is sending data back, but harmless to leave.
+    // Subscribe is not strictly necessary for just sending commands, but good practice
     client.subscribe(AIO_FEED_CONTROL); 
 }
 
@@ -36,21 +36,23 @@ function onConnectionLost(responseObject) {
     dot.classList.remove('connected');
     label.innerText = "DISCONNECTED";
     label.style.color = "var(--danger)";
+    blades.classList.remove('spinning');
 }
 
 function onMessageArrived(message) {
-    // This function would be used if the ESP32 published its state (e.g., "Timer Finished")
+    // This is where you would process status messages FROM the ESP32 (future state)
+    console.log("Status Message Arrived on Topic " + message.destinationName + ": " + message.payloadString);
 }
 
 // 3. Command Sender Function (Called by your HTML buttons)
 function sendCommand(command) {
     if (client.isConnected()) {
         const message = new Paho.MQTT.Message(command);
-        message.destinationName = AIO_FEED_CONTROL; // Topic for the ESP32
+        message.destinationName = AIO_FEED_CONTROL; 
         client.send(message);
         console.log(`Sent command: ${command}`);
 
-        // Update UI instantly for instant feedback
+        // Update UI instantly for instant visual feedback
         if (command === 'ON') {
             blades.classList.add('spinning');
             label.innerText = "SYSTEM ENGAGED";
@@ -64,5 +66,6 @@ function sendCommand(command) {
         console.error("MQTT client not connected! Please check console for details.");
         label.innerText = "ERROR: NOT CONNECTED";
         label.style.color = "var(--danger)";
+        blades.classList.remove('spinning');
     }
 }
