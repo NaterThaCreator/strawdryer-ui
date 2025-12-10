@@ -1,487 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>STRAW DRYER MK-II</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>STRAW DRYER REMOTE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #030305;
-      --panel: #0d0d14;
-      --primary: #00eaff;
-      --secondary: #ff007f;
-      --dim: #1e1e30;
-      --text: #e0e0ff;
+    :root { 
+      --bg: #050508; 
+      --panel: #0e0e15; 
+      --primary: #00ffcc; /* Cyber Cyan */
+      --danger: #ff0055;  /* Neon Red */
+      --dim: #1c1c28; 
+      --text: #e0e0ff; 
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      margin: 0; padding: 0;
-      background: radial-gradient(circle at center, #101018 0%, var(--bg) 100%);
-      color: var(--text);
-      font-family: "Roboto Mono", system-ui, monospace;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh;
+    body { 
+      margin: 0; padding: 0; 
+      background: radial-gradient(circle at center, #151520 0%, var(--bg) 100%); 
+      color: var(--text); 
+      font-family: 'Roboto Mono', monospace; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center; 
+      min-height: 100vh; 
     }
-    .container {
-      width: 90%; max-width: 400px;
-      background: var(--panel);
-      padding: 30px 24px;
-      border: 1px solid var(--dim);
-      border-radius: 16px;
-      box-shadow: 0 0 50px rgba(0, 234, 255, 0.2),
-                  inset 0 0 10px rgba(0, 234, 255, 0.05);
-      text-align: center;
+    .container { 
+      width: 90%; max-width: 420px; 
+      background: var(--panel); 
+      padding: 40px; 
+      border: 1px solid #333; 
+      border-radius: 12px; 
+      box-shadow: 0 0 60px rgba(0, 255, 204, 0.05); 
+      text-align: center; 
+      position: relative;
     }
-    h2 {
-      font-family: system-ui, sans-serif;
-      color: var(--primary);
-      text-shadow: 0 0 5px var(--primary);
-      margin-bottom: 20px;
-      font-size: 1.8em;
-      letter-spacing: 0.08em;
+    /* Status Indicator */
+    .connection-dot {
+      position: absolute; top: 20px; right: 20px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #333; box-shadow: 0 0 5px #333;
+      transition: all 0.3s;
+    }
+    .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+    
+    h2 { 
+      font-family: 'Orbitron', sans-serif; 
+      color: var(--primary); 
+      letter-spacing: 2px;
+      margin-bottom: 40px; 
+      font-size: 1.6em;
       text-transform: uppercase;
     }
-    .status {
-      color: var(--primary);
-      margin-bottom: 20px;
-      font-size: 1em;
-      font-weight: bold;
-      text-shadow: 0 0 8px rgba(0, 234, 255, 0.5);
-    }
-    .status.off {
-      color: #888;
-      text-shadow: none;
-    }
-    .fan-viz {
-      width: 120px; height: 120px;
-      margin: 0 auto 25px;
-      border: 3px solid var(--dim);
-      border-radius: 50%;
-      display: flex; justify-content: center; align-items: center;
+
+    /* Fan Visualizer */
+    .fan-viz { 
+      width: 140px; height: 140px; 
+      margin: 0 auto 40px; 
+      border: 4px solid var(--dim); 
+      border-radius: 50%; 
+      display: flex; justify-content: center; align-items: center; 
       background: #000;
-      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+      position: relative;
     }
-    .blades {
-      width: 90%; height: 90%;
-      border-radius: 50%;
-      background: conic-gradient(
-        from 0deg,
-        var(--primary) 0deg 30deg,
-        transparent 30deg 120deg,
-        var(--primary) 120deg 150deg,
-        transparent 150deg 240deg,
-        var(--primary) 240deg 270deg,
-        transparent 270deg 360deg
-      );
-      transition: box-shadow 0.2s ease;
+    .blades { 
+      width: 90%; height: 90%; 
+      background: conic-gradient(from 0deg, var(--primary) 0deg 30deg, transparent 30deg 120deg, var(--primary) 120deg 150deg, transparent 150deg 240deg, var(--primary) 240deg 270deg, transparent 270deg 360deg);
+      border-radius: 50%; 
+      opacity: 0.3;
+      transition: opacity 0.3s;
     }
-    .shadow-low  { box-shadow: 0 0 15px rgba(0,234,255,0.7); }
-    .shadow-med  { box-shadow: 0 0 25px rgba(0,234,255,0.8); }
-    .shadow-high { box-shadow: 0 0 35px var(--primary); }
+    .spinning { animation: spin 0.6s linear infinite; opacity: 1; box-shadow: 0 0 30px var(--primary); }
 
-    .speed-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .speed-btn {
-      background: #111;
-      border: 1px solid var(--dim);
-      color: #888;
-      padding: 12px 0;
-      font-family: "Roboto Mono", monospace;
-      cursor: pointer;
-      transition: all 0.15s;
-      border-radius: 8px;
-      font-size: 0.9em;
-    }
-    .speed-btn:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    .speed-btn.active {
-      border-color: var(--primary);
-      color: var(--primary);
-      background: rgba(0, 234, 255, 0.15);
-      box-shadow: 0 0 10px rgba(0, 234, 255, 0.5);
-    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    .slider-container { margin: 20px 0 22px; }
-    input[type="range"] {
-      width: 100%;
-      height: 8px;
-      accent-color: var(--primary);
-      cursor: pointer;
+    /* Controls */
+    .time-display {
+      font-family: 'Orbitron';
+      font-size: 2.5em;
+      color: var(--text);
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(255,255,255,0.1);
     }
-    #tVal {
-      font-size: 1.3em;
-      font-weight: 700;
-      color: var(--primary);
-    }
-    .slider-label {
-      margin-top: 8px;
-      font-size: 0.8em;
-      color: #aaa;
-    }
+    .label { font-size: 0.7em; color: #666; margin-bottom: 30px; letter-spacing: 1px; }
 
-    .btn-main {
-      width: 100%;
-      padding: 16px;
-      font-family: "Roboto Mono", monospace;
-      background: var(--primary);
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-      margin-bottom: 12px;
-      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
-      color: var(--bg);
-      border-radius: 8px;
-      font-size: 0.95em;
-    }
-    .btn-main:hover {
-      background: #55ffff;
-      box-shadow: 0 0 15px var(--primary);
-      transform: translateY(-1px);
-    }
-    .btn-main:active {
-      transform: translateY(0);
-    }
+    input[type=range] { width: 100%; margin-bottom: 40px; accent-color: var(--primary); cursor: pointer; }
 
-    .btn-stop {
-      background: transparent;
-      border: 1px solid var(--secondary);
-      color: var(--secondary);
+    .btn-group { display: flex; gap: 15px; }
+    button {
+      flex: 1; padding: 20px; border: none; border-radius: 6px;
+      font-family: 'Orbitron'; font-weight: bold; font-size: 0.9em;
+      cursor: pointer; transition: all 0.2s; text-transform: uppercase;
     }
-    .btn-stop:hover {
-      background: rgba(255, 0, 127, 0.1);
-      box-shadow: 0 0 15px var(--secondary);
+    .btn-start { 
+      background: var(--primary); color: #000; 
+      box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
     }
+    .btn-start:hover { background: #fff; box-shadow: 0 0 25px var(--primary); }
+    
+    .btn-stop { 
+      background: transparent; border: 1px solid var(--danger); color: var(--danger); 
+    }
+    .btn-stop:hover { background: var(--danger); color: #fff; box-shadow: 0 0 20px var(--danger); }
 
-    /* PIN overlay */
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-      backdrop-filter: blur(6px);
-    }
-    .overlay-card {
-      background: #050814;
-      padding: 20px 18px 16px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      width: 260px;
-      text-align: center;
-    }
-    .overlay-card h3 {
-      margin: 0 0 8px;
-      font-size: 1.1em;
-      color: var(--primary);
-    }
-    .overlay-card p {
-      margin: 0 0 12px;
-      font-size: 0.8em;
-      color: #aaa;
-    }
-    .pin-input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: #080c20;
-      color: #fff;
-      font-size: 0.95em;
-      outline: none;
-    }
-    .pin-input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 1px rgba(0, 234, 255, 0.5);
-    }
-    .pin-btn {
-      margin-top: 10px;
-      width: 100%;
-      padding: 10px;
-      border-radius: 999px;
-      border: none;
-      background: var(--primary);
-      color: #000;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 0.9em;
-    }
-    .pin-error {
-      margin-top: 6px;
-      min-height: 16px;
-      font-size: 0.78em;
-      color: #ff6b85;
-    }
   </style>
 </head>
 <body>
-  <!-- PIN overlay -->
-  <div class="overlay" id="pinOverlay">
-    <div class="overlay-card">
-      <h3>Enter Control PIN</h3>
-      <p>Only devices with the correct PIN can send commands.</p>
-      <input id="pinInput" class="pin-input" type="password" placeholder="Enter PIN" />
-      <button id="pinButton" class="pin-btn">Unlock</button>
-      <div id="pinError" class="pin-error"></div>
-    </div>
-  </div>
 
   <div class="container">
-    <h2>Dryer Control</h2>
-    <div id="statusText" class="status off">SYSTEM STANDBY</div>
+    <div class="connection-dot" id="connDot"></div>
+    <h2>Dryer Link</h2>
 
     <div class="fan-viz">
       <div class="blades" id="fanBlades"></div>
     </div>
 
-    <div class="speed-grid">
-      <button class="speed-btn" id="btnLow">LOW</button>
-      <button class="speed-btn" id="btnMed">MED</button>
-      <button class="speed-btn" id="btnHigh">MAX</button>
-    </div>
+    <div class="time-display" id="timeReadout">10m</div>
+    <div class="label" id="statusLabel">READY TO ENGAGE</div>
 
-    <div class="slider-container">
-      <input type="range" id="timeSlider" min="1" max="60" value="10">
-      <div class="slider-label">
-        <span id="tVal">10</span> SECONDS DURATION
-      </div>
-    </div>
+    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateUI(this.value)">
 
-    <button class="btn-main" id="engageBtn">ENGAGE</button>
-    <button class="btn-main btn-stop" id="abortBtn">ABORT</button>
+    <div class="btn-group">
+      <button class="btn-start" onclick="sendCommand(true)">ACTIVATE</button>
+      <button class="btn-stop" onclick="sendCommand(false)">ABORT</button>
+    </div>
   </div>
 
-  <script>
-    const BACKEND = "https://rapid-star-f817.fieldsnathanj.workers.dev";
+<script>
+  // ***************************************************************
+  // CONFIGURATION: YOU MUST EDIT THE PART IN BRACKETS BELOW!
+  // ***************************************************************
+  
+  // Example: "https://rapid-star-f817.naterthacreator.workers.dev"
+  const WORKER_URL = "https://rapid-star-f817.[YOUR-CLOUDFLARE-SUBDOMAIN].workers.dev";
 
-    // ---- PIN handling ----
-    let uiPin = "";
-    const pinOverlay = document.getElementById("pinOverlay");
-    const pinInput   = document.getElementById("pinInput");
-    const pinButton  = document.getElementById("pinButton");
-    const pinError   = document.getElementById("pinError");
+  // State
+  let sliderValue = 10;
+  const blades = document.getElementById('fanBlades');
+  const readout = document.getElementById('timeReadout');
+  const label = document.getElementById('statusLabel');
+  const dot = document.getElementById('connDot');
 
-    pinButton.addEventListener("click", () => {
-      const entered = pinInput.value.trim();
-      if (!entered) {
-        pinError.textContent = "PIN required.";
-        return;
+  // 1. Update the UI text when slider moves
+  function updateUI(val) {
+    sliderValue = val;
+    readout.innerText = val + "m";
+    label.innerText = "DURATION SETTING";
+  }
+
+  // 2. Send Command to Cloudflare
+  async function sendCommand(start) {
+    label.innerText = "TRANSMITTING...";
+    dot.className = "connection-dot"; // Blink off
+    
+    // Construct URL: /set?minutes=X
+    const minutes = start ? sliderValue : 0;
+    const target = `${WORKER_URL}/set?minutes=${minutes}`;
+
+    try {
+      await fetch(target);
+      // We don't need to manually update UI state here, 
+      // the Polling loop below will catch the change automatically.
+      dot.classList.add('connected');
+    } catch (e) {
+      console.error(e);
+      label.innerText = "LINK FAILURE";
+      label.style.color = "red";
+    }
+  }
+
+  // 3. Poll Cloudflare for Status (To sync UI with Reality)
+  async function pollStatus() {
+    try {
+      const response = await fetch(`${WORKER_URL}/status`);
+      const data = await response.json();
+      
+      let isRunning = data.r === 1 || data.running === true;
+      let timeLeft = data.t !== undefined ? data.t : data.timeLeft;
+
+      if (isRunning) {
+        blades.classList.add('spinning');
+        readout.innerText = Math.ceil(timeLeft / 60) + "m";
+        label.innerText = `RUNNING (${timeLeft}s)`;
+        label.style.color = "#00ffcc";
+      } else {
+        blades.classList.remove('spinning');
+        label.innerText = "SYSTEM STANDBY";
+        label.style.color = "#666";
+        // Reset readout to slider value if stopped
+        readout.innerText = document.getElementById('slider').value + "m";
       }
-      if (entered !== "straw") {
-        pinError.textContent = "Incorrect PIN.";
-        return;
-      }
-      uiPin = entered;
-      pinOverlay.style.display = "none";
-    });
-
-    pinInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") pinButton.click();
-    });
-
-    // ---- UI state ----
-    const statusText = document.getElementById("statusText");
-    const fanBlades  = document.getElementById("fanBlades");
-    const timeSlider = document.getElementById("timeSlider");
-    const tVal       = document.getElementById("tVal");
-    const btnLow     = document.getElementById("btnLow");
-    const btnMed     = document.getElementById("btnMed");
-    const btnHigh    = document.getElementById("btnHigh");
-    const engageBtn  = document.getElementById("engageBtn");
-    const abortBtn   = document.getElementById("abortBtn");
-
-    let selectedSpeed = "med";  // "low" | "med" | "high"
-    let running = false;
-    let rotation = 0;
-    let rotationSpeed = 0;      // degrees per frame
-    let animId = null;
-    let countdownTimer = null;
-    let remainingSec = 0;
-
-    const SPEED_PWM = {
-      low:  80,
-      med:  160,
-      high: 255
-    };
-
-    const SPEED_ROTATION = {
-      low:  4,   // degrees per frame
-      med:  8,
-      high: 14
-    };
-
-    function updateSpeedButtons() {
-      [btnLow, btnMed, btnHigh].forEach(b => b.classList.remove("active"));
-      if (selectedSpeed === "low")  btnLow.classList.add("active");
-      if (selectedSpeed === "med")  btnMed.classList.add("active");
-      if (selectedSpeed === "high") btnHigh.classList.add("active");
+      dot.classList.add('connected');
+    } catch (e) {
+      dot.classList.remove('connected');
     }
+  }
 
-    btnLow.addEventListener("click", () => {
-      selectedSpeed = "low";
-      updateSpeedButtons();
-      updateFanGlow();
-    });
-    btnMed.addEventListener("click", () => {
-      selectedSpeed = "med";
-      updateSpeedButtons();
-      updateFanGlow();
-    });
-    btnHigh.addEventListener("click", () => {
-      selectedSpeed = "high";
-      updateSpeedButtons();
-      updateFanGlow();
-    });
+  // Check status every 1 second
+  setInterval(pollStatus, 1000);
+  
+  // Initial UI set
+  updateUI(10);
 
-    function updateTimerLabel() {
-      const sec = parseInt(timeSlider.value, 10) || 1;
-      tVal.textContent = sec;
-    }
-
-    timeSlider.addEventListener("input", updateTimerLabel);
-    updateTimerLabel();
-
-    function updateFanGlow() {
-      fanBlades.classList.remove("shadow-low", "shadow-med", "shadow-high");
-      if (!running) return;
-      if (selectedSpeed === "low")  fanBlades.classList.add("shadow-low");
-      if (selectedSpeed === "med")  fanBlades.classList.add("shadow-med");
-      if (selectedSpeed === "high") fanBlades.classList.add("shadow-high");
-    }
-
-    function setStatus(text, isOn) {
-      statusText.textContent = text;
-      if (isOn) statusText.classList.remove("off");
-      else      statusText.classList.add("off");
-    }
-
-    // ---- Fan animation loop ----
-    function animateFan() {
-      if (!running) {
-        rotationSpeed = 0;
-        fanBlades.style.transform = "rotate(0deg)";
-        animId = null;
-        return;
-      }
-      rotation = (rotation + rotationSpeed) % 360;
-      fanBlades.style.transform = "rotate(" + rotation + "deg)";
-      animId = requestAnimationFrame(animateFan);
-    }
-
-    function startFanVisual() {
-      running = true;
-      rotationSpeed = SPEED_ROTATION[selectedSpeed] || SPEED_ROTATION.med;
-      updateFanGlow();
-      if (!animId) {
-        animId = requestAnimationFrame(animateFan);
-      }
-    }
-
-    function stopFanVisual() {
-      running = false;
-      fanBlades.classList.remove("shadow-low", "shadow-med", "shadow-high");
-      if (animId) {
-        cancelAnimationFrame(animId);
-        animId = null;
-      }
-      fanBlades.style.transform = "rotate(0deg)";
-    }
-
-    function startCountdown(sec) {
-      if (countdownTimer) clearInterval(countdownTimer);
-      remainingSec = sec;
-
-      countdownTimer = setInterval(() => {
-        remainingSec--;
-        if (remainingSec <= 0) {
-          clearInterval(countdownTimer);
-          countdownTimer = null;
-          setStatus("SYSTEM STANDBY", false);
-          stopFanVisual();
-          return;
-        }
-        setStatus(
-          "RUNNING (" + selectedSpeed.toUpperCase() + ") - " +
-          remainingSec + "s LEFT",
-          true
-        );
-      }, 1000);
-    }
-
-    // ---- Send commands to Cloudflare Worker ----
-    function sendCommand(action, pwm, seconds) {
-      if (!uiPin) {
-        alert("Enter PIN first.");
-        return;
-      }
-
-      const body = {
-        password: uiPin,
-        action: action,
-        speed: pwm,
-        time: seconds
-      };
-
-      fetch(BACKEND + "/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      })
-      .then(res => {
-        if (res.status === 401) {
-          setStatus("PIN REJECTED BY BACKEND", false);
-          return;
-        }
-        if (!res.ok) {
-          setStatus("BACKEND ERROR " + res.status, false);
-          return;
-        }
-
-        if (action === "START") {
-          startFanVisual();
-          setStatus(
-            "RUNNING (" + selectedSpeed.toUpperCase() + ") - " +
-            seconds + "s LEFT",
-            true
-          );
-          startCountdown(seconds);
-        } else if (action === "STOP" || action === "CLEAR") {
-          if (countdownTimer) {
-            clearInterval(countdownTimer);
-            countdownTimer = null;
-          }
-          stopFanVisual();
-          setStatus("SYSTEM STANDBY", false);
-        }
-      })
-      .catch(() => {
-        setStatus("NETWORK ERROR", false);
-      });
-    }
-
-    // ---- Button actions ----
-    engageBtn.addEventListener("click", () => {
-      const seconds = parseInt(timeSlider.value, 10) || 1;
-      const pwm = SPEED_PWM[selectedSpeed] || SPEED_PWM.med;
-      sendCommand("START", pwm, seconds);
-    });
-
-    abortBtn.addEventListener("click", () => {
-      sendCommand("STOP", 0, 0);
-    });
-
-    // Initial visual state
-    selectedSpeed = "med";
-    updateSpeedButtons();
-    setStatus("SYSTEM STANDBY", false);
-    stopFanVisual();
-  </script>
+</script>
 </body>
 </html>
