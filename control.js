@@ -8,7 +8,6 @@ const AIO_USERNAME = "naterthacreator";
 const AIO_FEED_STATUS_URL = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/straw-dryer-status/data/last`;
 
 // --- UI Elements ---
-// WorkerDot and DeviceDot are used for health visibility
 const blades = document.getElementById('fanBlades');
 const label = document.getElementById('statusLabel');
 const workerDot = document.getElementById('workerDot'); 
