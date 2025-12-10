@@ -1,13 +1,18 @@
-// control.js - SIMPLIFIED TO TALK TO CLOUDFLARE WORKER
+// control.js - SECURE SENDER WITH HEALTH AND STATUS CHECKS
 
-// *** CRITICAL: REPLACE THIS WITH YOUR CLOUDFLARE WORKER'S URL ***
-// Example: https://straw-dryer-proxy.naterthacreator.workers.dev
-const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev";"; 
+// *** CRITICAL: YOUR DEPLOYED CLOUDFLARE WORKER URL ***
+const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev"; 
+
+// --- STATUS FEED (READ-ONLY) ---
+const AIO_USERNAME = "naterthacreator";
+const AIO_FEED_STATUS_URL = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/straw-dryer-status/data/last`;
 
 // --- UI Elements ---
+// WorkerDot and DeviceDot are used for health visibility
 const blades = document.getElementById('fanBlades');
 const label = document.getElementById('statusLabel');
-const dot = document.getElementById('connDot');
+const workerDot = document.getElementById('workerDot'); 
+const deviceDot = document.getElementById('deviceDot'); 
 const timeReadout = document.getElementById('timeReadout'); 
 const slider = document.getElementById('slider'); 
 
@@ -15,26 +20,67 @@ const slider = document.getElementById('slider');
 let countdownInterval = null;
 let timeLeftSeconds = 0;
 
-// Set initial UI state
-document.addEventListener('DOMContentLoaded', setStandbyUI);
+// 1. Worker Health Check (Periodic, non-blocking)
+function pollWorkerHealth() {
+    fetch(WORKER_URL + '?command=HEALTH_CHECK') 
+        .then(response => {
+            if (response.ok) {
+                workerDot.classList.add('connected');
+            } else {
+                workerDot.classList.remove('connected');
+            }
+        })
+        .catch(() => {
+            workerDot.classList.remove('connected');
+        });
+}
 
-// 1. Command Sender Function (Called by your HTML buttons)
+// 2. ESP32 Device Health Check (LWT Status)
+function pollDeviceStatus() {
+    fetch(AIO_FEED_STATUS_URL) 
+        .then(response => response.json())
+        .then(data => {
+            const status = data.value;
+            if (status === "ONLINE") {
+                deviceDot.classList.add('connected');
+                if (label.innerText === "NETWORK ERROR" || label.innerText === "DEVICE OFFLINE" || label.innerText === "LOADING STATUS...") {
+                    setStandbyUI();
+                }
+            } else if (status === "OFFLINE") {
+                deviceDot.classList.remove('connected');
+                blades.classList.remove('spinning');
+                stopCountdown();
+                label.innerText = "DEVICE OFFLINE";
+                label.style.color = "var(--danger)";
+            }
+        })
+        .catch(() => {
+            deviceDot.classList.remove('connected');
+        });
+}
+
+// 3. Command Sender Function
 function sendCommand(command) {
-    dot.classList.remove('connected'); // Show connection activity immediately
-    label.innerText = `SENDING ${command}...`;
-    label.style.color = "var(--primary)";
+    if (!workerDot.classList.contains('connected')) {
+        label.innerText = "PROXY OFFLINE - CANNOT SEND";
+        label.style.color = "var(--danger)";
+        return;
+    }
+    
+    // Check if the ESP32 is online before sending command
+    if (command === 'ON' && !deviceDot.classList.contains('connected')) {
+        alert("The ESP32 is currently OFFLINE. Please check the device before engaging.");
+        return;
+    }
 
-    // Append the command to the Worker's URL
     const fetchURL = `${WORKER_URL}?command=${command}`;
     
     fetch(fetchURL)
         .then(response => {
             if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-            return response.text();
         })
         .then(() => {
             // Success: Update UI instantly and manage timer
-            dot.classList.add('connected');
             if (command === 'ON') {
                 const durationMinutes = parseInt(slider.value); 
                 setRunningUI(durationMinutes);
@@ -44,15 +90,14 @@ function sendCommand(command) {
         })
         .catch(error => {
             // Failure: Show error state
-            dot.classList.remove('connected');
-            label.innerText = `ERROR: ${error.message}`;
+            label.innerText = `SEND FAILED: ${error.message}`;
             label.style.color = "var(--danger)";
             blades.classList.remove('spinning');
             stopCountdown();
         });
 }
 
-// 2. UI State Management Functions
+// 4. UI State and Countdown Logic
 function setRunningUI(durationMinutes) {
     blades.classList.add('spinning');
     label.innerText = "SYSTEM ENGAGED";
@@ -72,7 +117,6 @@ function setStandbyUI() {
     timeReadout.innerText = minutes + "m";
 }
 
-// 3. Countdown Logic
 function startCountdown() {
     if (countdownInterval) clearInterval(countdownInterval);
 
@@ -82,16 +126,13 @@ function startCountdown() {
         if (timeLeftSeconds <= 0) {
             clearInterval(countdownInterval);
             timeLeftSeconds = 0;
-            // Send the OFF command to ensure the ESP32 turns off when the timer expires
             sendCommand('OFF'); 
-            // Note: sendCommand calls setStandbyUI on success
             return;
         }
 
         const minutes = Math.floor(timeLeftSeconds / 60);
         const seconds = timeLeftSeconds % 60;
         
-        // Format the time as M:SS
         label.innerText = `ENGAGED - ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
     }, 1000);
@@ -103,3 +144,12 @@ function stopCountdown() {
         countdownInterval = null;
     }
 }
+
+// 5. Initial Setup and Continuous Polling
+setInterval(pollWorkerHealth, 5000);   // Check Worker every 5 seconds
+setInterval(pollDeviceStatus, 5000);   // Check Device LWT every 5 seconds
+document.addEventListener('DOMContentLoaded', () => {
+    pollWorkerHealth(); 
+    pollDeviceStatus();
+    setStandbyUI();
+});
