@@ -127,9 +127,35 @@
 
     #statusLabel { font-family: 'Orbitron', sans-serif; font-size: 1.1em; margin-bottom: 20px; min-height: 1.5em; color: #666; }
 
-    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 20px 0; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 10px; background: var(--primary); cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px var(--primary); }
-    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; }
+    /* FIXED SLIDER STYLES */
+    input[type=range] { 
+      -webkit-appearance: none; 
+      width: 100%; 
+      background: transparent; 
+      margin: 20px 0; 
+      height: 30px; /* Increased hit area for easier dragging */
+      position: relative;
+      z-index: 5;
+      cursor: grab;
+    }
+    input[type=range]:active { cursor: grabbing; }
+    
+    input[type=range]::-webkit-slider-thumb { 
+      -webkit-appearance: none; 
+      height: 20px; 
+      width: 10px; 
+      background: var(--primary); 
+      cursor: grab; 
+      margin-top: -8px; 
+      box-shadow: 0 0 10px var(--primary); 
+    }
+    input[type=range]::-webkit-slider-runnable-track { 
+      width: 100%; 
+      height: 4px; 
+      cursor: pointer; 
+      background: #333; 
+      border-radius: 2px; 
+    }
 
     #timeReadout { font-family:'Orbitron', sans-serif; font-size: 2.5em; color: var(--text); margin-bottom: 30px; }
 
@@ -164,7 +190,9 @@
     <div id="statusLabel">SYSTEM READY</div>
 
     <div id="timeReadout">10<span style="font-size:0.4em">MIN</span></div>
-    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)">
+    
+    <!-- MODIFIED: Range 0-22 to map to specific time steps array -->
+    <input type="range" id="slider" min="0" max="22" step="1" value="8" oninput="updateLabelFromIndex(this.value)">
 
     <div class="btn-group">
       <button class="btn-start" onclick="sendCommand('ON')">ACTIVATE</button>
@@ -175,6 +203,42 @@
   <script>
     // *** CONFIGURATION ***
     const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev"; 
+    
+    // Custom Time Steps (Minutes)
+    // 0-1 min (15s increments): 0.25, 0.5, 0.75, 1
+    // 1-5 min (1m increments): 2, 3, 4, 5
+    // 5-60 min (5m increments): 10, 15, 20... 60
+    // 60-120 min (15m increments): 75, 90, 105, 120
+    const timeSteps = [
+      0.25, 0.5, 0.75, 1, 
+      2, 3, 4, 5, 
+      10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60,
+      75, 90, 105, 120
+    ];
+
+    // *** WEB WORKER SETUP (Background Timer Fix) ***
+    const localWorkerBlob = new Blob([`
+      let timerId;
+      self.onmessage = function(e) {
+        if (e.data.action === 'start') {
+          if (timerId) clearTimeout(timerId);
+          timerId = setTimeout(() => {
+            self.postMessage('finished');
+          }, e.data.duration);
+        } else if (e.data.action === 'stop') {
+          if (timerId) clearTimeout(timerId);
+        }
+      };
+    `], { type: 'application/javascript' });
+
+    const timerWorker = new Worker(URL.createObjectURL(localWorkerBlob));
+
+    timerWorker.onmessage = (e) => {
+      if (e.data === 'finished') {
+        console.log("Worker finished, triggering OFF command.");
+        sendCommand('OFF');
+      }
+    };
 
     // *** UI ELEMENTS ***
     const blades = document.getElementById('fanBlades');
@@ -187,7 +251,7 @@
     const ctx = fireCanvas.getContext('2d');
 
     let countdownInterval = null;
-    let timeLeftSeconds = 0;
+    let targetTimestamp = 0; 
     let rainInterval = null;
     const colors = ['#ff0055', '#00ffcc', '#d600ff', '#ffee00', '#0099ff'];
 
@@ -210,7 +274,7 @@
             this.size = Math.random() * 20 + 10;
             this.speedY = Math.random() * 5 + 3;
             this.speedX = (Math.random() - 0.5) * 2;
-            this.color = { r: 255, g: 150, b: 0, a: 1 }; // Start Orange
+            this.color = { r: 255, g: 150, b: 0, a: 1 };
             this.decay = Math.random() * 0.02 + 0.01;
         }
         update() {
@@ -218,11 +282,9 @@
             this.x += this.speedX;
             this.size -= 0.1;
             this.color.a -= this.decay;
-            
-            // Color shift: White -> Yellow -> Orange -> Red -> Dark
-            if(this.color.a > 0.8) { this.color.r = 255; this.color.g = 255; this.color.b = 200; } // White/Yellow hot
-            else if(this.color.a > 0.5) { this.color.r = 255; this.color.g = 140; this.color.b = 0; } // Orange
-            else { this.color.r = 200; this.color.g = 50; this.color.b = 0; } // Red/Smoke
+            if(this.color.a > 0.8) { this.color.r = 255; this.color.g = 255; this.color.b = 200; }
+            else if(this.color.a > 0.5) { this.color.r = 255; this.color.g = 140; this.color.b = 0; }
+            else { this.color.r = 200; this.color.g = 50; this.color.b = 0; }
         }
         draw() {
             ctx.beginPath();
@@ -234,13 +296,9 @@
 
     function animateFire() {
         ctx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
-        
-        // Spawn new particles if active
         if(isFireActive) {
             for(let i=0; i<15; i++) fireParticles.push(new Particle());
         }
-
-        // Update and draw
         for (let i = 0; i < fireParticles.length; i++) {
             fireParticles[i].update();
             fireParticles[i].draw();
@@ -249,7 +307,6 @@
                 i--;
             }
         }
-
         if (fireParticles.length > 0 || isFireActive) {
             fireAnimationId = requestAnimationFrame(animateFire);
         }
@@ -264,15 +321,19 @@
 
     // --- COMMAND SENDER ---
     function sendCommand(command) {
-        const fetchURL = `${WORKER_URL}?command=${command}`;
+        // MODIFIED: Append durationMinutes so backend can theoretically handle timeout if browser closes
+        const durationMinutes = timeSteps[slider.value];
+        const fetchURL = `${WORKER_URL}?command=${command}&duration=${durationMinutes}`;
         
         label.innerText = `TRANSMITTING...`;
         label.style.color = "var(--primary)";
 
         if (command === 'ON') {
-            const durationMinutes = parseInt(slider.value); 
+            const durationMs = durationMinutes * 60 * 1000;
+            timerWorker.postMessage({ action: 'start', duration: durationMs });
             setRunningUI(durationMinutes);
         } else if (command === 'OFF') {
+            timerWorker.postMessage({ action: 'stop' });
             setStandbyUI();
         }
 
@@ -288,7 +349,7 @@
         label.innerText = "SYSTEM ACTIVE";
         label.style.color = "var(--primary)";
         startRainEffect();
-        timeLeftSeconds = durationMinutes * 60;
+        targetTimestamp = Date.now() + (durationMinutes * 60 * 1000);
         startCountdown();
     }
 
@@ -298,23 +359,34 @@
         label.style.color = "#666";
         triggerFireEffect(); 
         stopCountdown();
-        const minutes = parseInt(slider.value);
-        timeReadout.innerHTML = minutes + "<span style='font-size:0.4em'>MIN</span>";
+        updateLabelFromIndex(slider.value);
     }
 
     // --- TIMER ---
     function startCountdown() {
         if (countdownInterval) clearInterval(countdownInterval);
-        countdownInterval = setInterval(() => {
-            timeLeftSeconds--;
-            if (timeLeftSeconds <= 0) {
-                sendCommand('OFF'); 
-                return;
-            }
-            const m = Math.floor(timeLeftSeconds / 60);
-            const s = timeLeftSeconds % 60;
-            timeReadout.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        }, 1000);
+        updateTimerDisplay();
+        countdownInterval = setInterval(updateTimerDisplay, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const now = Date.now();
+        const secondsRemaining = Math.ceil((targetTimestamp - now) / 1000);
+
+        if (secondsRemaining <= 0) {
+            timeReadout.innerText = "0:00";
+            return;
+        }
+
+        const h = Math.floor(secondsRemaining / 3600);
+        const m = Math.floor((secondsRemaining % 3600) / 60);
+        const s = secondsRemaining % 60;
+        
+        if (h > 0) {
+           timeReadout.innerText = `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        } else {
+           timeReadout.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
     }
 
     function stopCountdown() {
@@ -324,9 +396,20 @@
         }
     }
 
-    // --- ANIMATIONS ---
-    function updateLabel(val) {
-        document.getElementById('timeReadout').innerHTML = val + "<span style='font-size:0.4em'>MIN</span>";
+    // --- ANIMATIONS & HELPERS ---
+    function updateLabelFromIndex(index) {
+        const val = timeSteps[index];
+        if (val < 1) {
+             const seconds = Math.round(val * 60);
+             document.getElementById('timeReadout').innerHTML = seconds + "<span style='font-size:0.4em'>SEC</span>";
+        } else if (val >= 60) {
+             const hours = Math.floor(val / 60);
+             const mins = val % 60;
+             const display = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+             document.getElementById('timeReadout').innerHTML = display + "<span style='font-size:0.4em'></span>";
+        } else {
+             document.getElementById('timeReadout').innerHTML = val + "<span style='font-size:0.4em'>MIN</span>";
+        }
     }
 
     function startRainEffect() {
@@ -338,55 +421,37 @@
         straw.style.top = '-60px';
         straw.style.background = colors[Math.floor(Math.random() * colors.length)];
         straw.style.transform = `rotate(${Math.random() * 360}deg)`;
-        
         const duration = 1 + Math.random() * 2;
         straw.style.transition = `top ${duration}s linear`;
-        
         rainContainer.appendChild(straw);
-
-        setTimeout(() => {
-          straw.style.top = (85 + Math.random() * 13) + 'vh'; 
-        }, 50);
-
-        if(rainContainer.children.length > 300) {
-          rainContainer.removeChild(rainContainer.firstChild);
-        }
+        setTimeout(() => { straw.style.top = (85 + Math.random() * 13) + 'vh'; }, 50);
+        if(rainContainer.children.length > 300) { rainContainer.removeChild(rainContainer.firstChild); }
       }, 80); 
     }
 
     function triggerFireEffect() {
-      // 1. Stop Rain
-      if(rainInterval) {
-        clearInterval(rainInterval);
-        rainInterval = null;
-      }
-      
-      // 2. Start Canvas Fire
+      if(rainInterval) { clearInterval(rainInterval); rainInterval = null; }
       isFireActive = true;
       fireCanvas.style.opacity = 1;
       animateFire();
-
-      // 3. Turn Straws to Ash
-      const straws = document.querySelectorAll('.straw');
-      straws.forEach((straw, index) => {
-        // Clear falling transition so they stop moving and just burn
+      document.querySelectorAll('.straw').forEach((straw, index) => {
         straw.style.transition = ''; 
-        setTimeout(() => { 
-            straw.classList.add('burning'); 
-        }, index * 2);
+        setTimeout(() => { straw.classList.add('burning'); }, index * 2);
       });
-
-      // 4. Cleanup
       setTimeout(() => { 
-          isFireActive = false; // Stop spawning fire
-          fireCanvas.style.opacity = 0; // Fade out fire
-          rainContainer.innerHTML = ''; // Delete ash
-      }, 3500); // 3.5 seconds of glory
+          isFireActive = false; 
+          fireCanvas.style.opacity = 0; 
+          rainContainer.innerHTML = ''; 
+      }, 1750);
     }
 
     // --- INIT ---
+    updateLabelFromIndex(slider.value);
     setInterval(pollWorkerHealth, 5000);   
     pollWorkerHealth(); 
+
+    // REMOVED: window.addEventListener('beforeunload', ...) 
+    // This allows the browser to close without killing the switch immediately.
   </script>
 </body>
 </html>
