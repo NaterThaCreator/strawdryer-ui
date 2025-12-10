@@ -6,9 +6,7 @@
   <title>STRAW DRYER - CLOUD</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;700&display=swap" rel="stylesheet">
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-  <script src="control.js" type="text/javascript"></script>
-    <style>
+  <style>
     /* CYBERPUNK STYLING */
     :root { --bg: #050508; --panel: #0e0e15; --primary: #00ffcc; --danger: #ff0055; --text: #e0e0ff; }
     body { 
@@ -35,7 +33,7 @@
       background: conic-gradient(from 0deg, var(--primary) 0deg 30deg, transparent 30deg 120deg, var(--primary) 120deg 150deg, transparent 150deg 240deg, var(--primary) 240deg 270deg, transparent 270deg 360deg);
       border-radius: 50%; opacity: 0.3; transition: opacity 0.3s;
     }
-    .spinning { animation: spin 0.2s linear infinite; opacity: 1; box-shadow: 0 0 30px var(--primary); } /* Increased speed to look like real spin */
+    .spinning { animation: spin 0.2s linear infinite; opacity: 1; box-shadow: 0 0 30px var(--primary); } 
     @keyframes spin { 100% { transform: rotate(360deg); } }
     .btn-group { display: flex; gap: 15px; margin-top: 30px;}
     button {
@@ -54,16 +52,18 @@
     <div class="fan-viz"><div class="blades" id="fanBlades"></div></div>
     <div id="statusLabel">DISCONNECTED</div>
 
-        <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)" style="width:100%; margin-top: 20px; accent-color: #00ffcc;">
+    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)" style="width:100%; margin-top: 20px; accent-color: #00ffcc;">
     <div id="timeReadout" style="font-family:'Orbitron'; font-size: 1.5em; margin-bottom: 20px;">10m</div>
 
     <div class="btn-group">
-            <button class="btn-start" onclick="sendCommand('ON')">ENGAGE</button>
+      <button class="btn-start" onclick="sendCommand('ON')">ENGAGE</button>
       <button class="btn-stop" onclick="sendCommand('OFF')">ABORT</button>
     </div>
   </div>
 
-<script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="control.js" type="text/javascript"></script>
+    <script>
   // Simple slider label update
   let sliderVal = 10;
   function updateLabel(val) {
