@@ -3,105 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>STRAW DRYER - DWEET</title>
+  <title>STRAW DRYER - CLOUD</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;700&display=swap" rel="stylesheet">
   <style>
-    /* CYBERPUNK STYLING (UNCHANGED) */
-    :root { 
-      --bg: #050508; 
-      --panel: #0e0e15; 
-      --primary: #00ffcc; /* Cyber Cyan */
-      --danger: #ff0055;  /* Neon Red */
-      --dim: #1c1c28; 
-      --text: #e0e0ff; 
-    }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    /* CYBERPUNK STYLING */
+    :root { --bg: #050508; --panel: #0e0e15; --primary: #00ffcc; --danger: #ff0055; --text: #e0e0ff; }
     body { 
-      margin: 0; padding: 0; 
-      background: radial-gradient(circle at center, #151520 0%, var(--bg) 100%); 
-      color: var(--text); 
-      font-family: 'Roboto Mono', monospace; 
-      display: flex; flex-direction: column; align-items: center; justify-content: center; 
-      min-height: 100vh; 
+      margin: 0; padding: 0; background: radial-gradient(circle at center, #151520 0%, var(--bg) 100%); 
+      color: var(--text); font-family: 'Roboto Mono', monospace; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; 
     }
     .container { 
-      width: 90%; max-width: 420px; 
-      background: var(--panel); 
-      padding: 40px; 
-      border: 1px solid #333; 
-      border-radius: 12px; 
-      box-shadow: 0 0 60px rgba(0, 255, 204, 0.05); 
-      text-align: center; 
-      position: relative;
+      width: 90%; max-width: 420px; background: var(--panel); padding: 40px; 
+      border: 1px solid #333; border-radius: 12px; box-shadow: 0 0 60px rgba(0, 255, 204, 0.05); text-align: center; position: relative;
     }
-    /* Status Indicator */
     .connection-dot {
-      position: absolute; top: 20px; right: 20px;
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #333; box-shadow: 0 0 5px #333;
-      transition: all 0.3s;
+      position: absolute; top: 20px; right: 20px; width: 10px; height: 10px; border-radius: 50%;
+      background: #333; transition: all 0.3s;
     }
     .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
-    
-    h2 { 
-      font-family: 'Orbitron', sans-serif; 
-      color: var(--primary); 
-      letter-spacing: 2px;
-      margin-bottom: 40px; 
-      font-size: 1.6em;
-      text-transform: uppercase;
-    }
-
-    /* Fan Visualizer */
+    h2 { font-family: 'Orbitron'; color: var(--primary); letter-spacing: 2px; margin-bottom: 40px; }
     .fan-viz { 
-      width: 140px; height: 140px; 
-      margin: 0 auto 40px; 
-      border: 4px solid var(--dim); 
-      border-radius: 50%; 
-      display: flex; justify-content: center; align-items: center; 
-      background: #000;
-      position: relative;
+      width: 140px; height: 140px; margin: 0 auto 40px; border: 4px solid #1c1c28; border-radius: 50%; 
+      display: flex; justify-content: center; align-items: center; background: #000;
     }
     .blades { 
       width: 90%; height: 90%; 
       background: conic-gradient(from 0deg, var(--primary) 0deg 30deg, transparent 30deg 120deg, var(--primary) 120deg 150deg, transparent 150deg 240deg, var(--primary) 240deg 270deg, transparent 270deg 360deg);
-      border-radius: 50%; 
-      opacity: 0.3;
-      transition: opacity 0.3s;
+      border-radius: 50%; opacity: 0.3; transition: opacity 0.3s;
     }
     .spinning { animation: spin 0.6s linear infinite; opacity: 1; box-shadow: 0 0 30px var(--primary); }
-
     @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    /* Controls */
-    .time-display {
-      font-family: 'Orbitron';
-      font-size: 2.5em;
-      color: var(--text);
-      margin-bottom: 10px;
-      text-shadow: 0 0 10px rgba(255,255,255,0.1);
-    }
-    .label { font-size: 0.7em; color: #666; margin-bottom: 30px; letter-spacing: 1px; }
-
-    input[type=range] { width: 100%; margin-bottom: 40px; accent-color: var(--primary); cursor: pointer; }
-
-    .btn-group { display: flex; gap: 15px; }
+    .btn-group { display: flex; gap: 15px; margin-top: 30px;}
     button {
-      flex: 1; padding: 20px; border: none; border-radius: 6px;
-      font-family: 'Orbitron'; font-weight: bold; font-size: 0.9em;
-      cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+      flex: 1; padding: 20px; border: none; border-radius: 6px; font-family: 'Orbitron'; font-weight: bold; font-size: 0.9em; cursor: pointer;
     }
-    .btn-start { 
-      background: var(--primary); color: #000; 
-      box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
-    }
-    .btn-start:hover { background: #fff; box-shadow: 0 0 25px var(--primary); }
-    
-    .btn-stop { 
-      background: transparent; border: 1px solid var(--danger); color: var(--danger); 
-    }
-    .btn-stop:hover { background: var(--danger); color: #fff; box-shadow: 0 0 20px var(--danger); }
-
+    .btn-start { background: var(--primary); color: #000; }
+    .btn-stop { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
   </style>
 </head>
 <body>
@@ -109,46 +47,36 @@
   <div class="container">
     <div class="connection-dot" id="connDot"></div>
     <h2>Dryer Link</h2>
+    <div class="fan-viz"><div class="blades" id="fanBlades"></div></div>
+    <div id="statusLabel">READY</div>
 
-    <div class="fan-viz">
-      <div class="blades" id="fanBlades"></div>
-    </div>
-
-    <div class="time-display" id="timeReadout">10m</div>
-    <div class="label" id="statusLabel">READY TO ENGAGE</div>
-
-    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateUI(this.value)">
+    <input type="range" id="slider" min="1" max="60" value="10" oninput="updateLabel(this.value)" style="width:100%; margin-top: 20px; accent-color: #00ffcc;">
+    <div id="timeReadout" style="font-family:'Orbitron'; font-size: 1.5em; margin-bottom: 20px;">10m</div>
 
     <div class="btn-group">
-      <button class="btn-start" onclick="sendCommand(1)">ACTIVATE</button>
-      <button class="btn-stop" onclick="sendCommand(0)">ABORT</button>
+      <button class="btn-start" onclick="sendCommand(true)">ENGAGE</button>
+      <button class="btn-stop" onclick="sendCommand(false)">ABORT</button>
     </div>
   </div>
 
 <script>
-  // ***************************************************************
-  // CONFIGURATION: USING DWEET.IO
-  // ***************************************************************
-  const THING_NAME = "fieldsnathanj-dryer-mk1";
+  // YOUR CLOUDFLARE WORKER
+  const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev";
 
-  // State
-  let sliderValue = 10;
   const blades = document.getElementById('fanBlades');
-  const readout = document.getElementById('timeReadout');
   const label = document.getElementById('statusLabel');
   const dot = document.getElementById('connDot');
+  let sliderVal = 10;
 
-  // 1. Update the UI text when slider moves
-  function updateUI(val) {
-    sliderValue = val;
-    readout.innerText = val + "m";
-    label.innerText = "DURATION SETTING";
+  function updateLabel(val) {
+    sliderVal = val;
+    document.getElementById('timeReadout').innerText = val + "m";
   }
 
-  // 2. Send Command to Dweet (Optimistic)
-  async function sendCommand(state) {
-    // Immediate Visual Feedback (So it feels fast)
-    if(state === 1) {
+  // 1. INSTANT UI UPDATE (The "Lie")
+  function sendCommand(start) {
+    // Show the result IMMEDIATELY
+    if(start) {
       blades.classList.add('spinning');
       label.innerText = "TRANSMITTING...";
       label.style.color = "#00ffcc";
@@ -158,50 +86,40 @@
       label.style.color = "#ff0055";
     }
 
-    try {
-      // Send command to the billboard
-      await fetch(`https://dweet.io/dweet/for/${THING_NAME}?state=${state}`);
-      dot.classList.add('connected');
-    } catch (e) {
+    // Send the actual message in the background
+    const minutes = start ? sliderVal : 0;
+    fetch(`${WORKER_URL}/set?minutes=${minutes}`).catch(e => {
       console.error(e);
-      label.innerText = "LINK FAILURE";
-      label.style.color = "red";
-    }
+      label.innerText = "ERROR";
+    });
   }
 
-  // 3. Poll Dweet for Status (To sync UI with Reality)
+  // 2. Background Sync
   async function pollStatus() {
     try {
-      // Get the latest message from the billboard
-      const response = await fetch(`https://dweet.io/get/latest/dweet/for/${THING_NAME}`);
+      const response = await fetch(`${WORKER_URL}/status`);
       const data = await response.json();
       
-      // Parse Dweet structure
-      // Format: {"with": [...], "content": {"state": 1}}
-      const currentState = data.with[0].content.state;
+      let isRunning = data.r === 1 || data.running === true;
+      let timeLeft = data.t !== undefined ? data.t : data.timeLeft;
 
-      if (currentState == 1) {
+      // Only update if we are connected
+      if (isRunning) {
         if(!blades.classList.contains('spinning')) blades.classList.add('spinning');
-        label.innerText = `RUNNING`;
+        label.innerText = `RUNNING (${timeLeft}s)`;
         label.style.color = "#00ffcc";
       } else {
         if(blades.classList.contains('spinning')) blades.classList.remove('spinning');
-        label.innerText = "SYSTEM STANDBY";
+        label.innerText = "STANDBY";
         label.style.color = "#666";
       }
       dot.classList.add('connected');
     } catch (e) {
-      // If network fails, dot goes grey
       dot.classList.remove('connected');
     }
   }
 
-  // Check status every 1 second
-  setInterval(pollStatus, 1000);
-  
-  // Initial UI set
-  updateUI(10);
-
+  setInterval(pollStatus, 2000); 
 </script>
 </body>
 </html>
