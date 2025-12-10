@@ -2,7 +2,7 @@
 
 // *** CRITICAL: REPLACE THIS WITH YOUR CLOUDFLARE WORKER'S URL ***
 // Example: https://straw-dryer-proxy.naterthacreator.workers.dev
-const WORKER_URL = "YOUR_CLOUDFLARE_WORKER_URL_HERE"; 
+const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev";"; 
 
 // --- UI Elements ---
 const blades = document.getElementById('fanBlades');
