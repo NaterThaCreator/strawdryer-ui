@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>STRAW DRYER - NEON</title>
+  <title>Straw Dryer</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
   
   <style>
@@ -29,6 +29,9 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; 
       min-height: 100vh; 
       overflow: hidden; 
+      /* PREVENT TEXT SELECTION ON MOBILE DRAG */
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* RAIN CONTAINER */
@@ -137,6 +140,8 @@
       position: relative;
       z-index: 5;
       cursor: grab;
+      /* PREVENT TAP HIGHLIGHT ON MOBILE */
+      -webkit-tap-highlight-color: transparent;
     }
     input[type=range]:active { cursor: grabbing; }
     
@@ -164,6 +169,8 @@
       flex: 1; padding: 20px; border: none; border-radius: 4px; 
       font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 1em; 
       cursor: pointer; transition: all 0.2s; letter-spacing: 1px; text-transform: uppercase;
+      /* PREVENT TAP HIGHLIGHT ON MOBILE */
+      -webkit-tap-highlight-color: transparent;
     }
     .btn-start { background: rgba(0, 255, 204, 0.1); color: var(--primary); border: 1px solid var(--primary); box-shadow: 0 0 10px rgba(0, 255, 204, 0.1); }
     .btn-start:active { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
@@ -183,7 +190,7 @@
     </div>
 
     <h2>STRAW DRYER</h2>
-    <div class="subtitle">Mk-II Vaporizer System</div>
+    <div class="subtitle">Mk-II</div>
 
     <div class="fan-viz"><div class="blades" id="fanBlades"></div></div>
     
@@ -191,7 +198,6 @@
 
     <div id="timeReadout">10<span style="font-size:0.4em">MIN</span></div>
     
-    <!-- MODIFIED: Range 0-22 to map to specific time steps array -->
     <input type="range" id="slider" min="0" max="22" step="1" value="8" oninput="updateLabelFromIndex(this.value)">
 
     <div class="btn-group">
@@ -204,11 +210,6 @@
     // *** CONFIGURATION ***
     const WORKER_URL = "https://rapid-star-f817.fieldsnathanj.workers.dev"; 
     
-    // Custom Time Steps (Minutes)
-    // 0-1 min (15s increments): 0.25, 0.5, 0.75, 1
-    // 1-5 min (1m increments): 2, 3, 4, 5
-    // 5-60 min (5m increments): 10, 15, 20... 60
-    // 60-120 min (15m increments): 75, 90, 105, 120
     const timeSteps = [
       0.25, 0.5, 0.75, 1, 
       2, 3, 4, 5, 
@@ -216,7 +217,7 @@
       75, 90, 105, 120
     ];
 
-    // *** WEB WORKER SETUP (Background Timer Fix) ***
+    // *** WEB WORKER SETUP ***
     const localWorkerBlob = new Blob([`
       let timerId;
       self.onmessage = function(e) {
@@ -321,8 +322,7 @@
 
     // --- COMMAND SENDER ---
     function sendCommand(command) {
-        // MODIFIED: Append durationMinutes so backend can theoretically handle timeout if browser closes
-        const durationMinutes = timeSteps[slider.value];
+        const durationMinutes = timeSteps[Math.round(slider.value)]; // Safely round here too
         const fetchURL = `${WORKER_URL}?command=${command}&duration=${durationMinutes}`;
         
         label.innerText = `TRANSMITTING...`;
@@ -398,7 +398,14 @@
 
     // --- ANIMATIONS & HELPERS ---
     function updateLabelFromIndex(index) {
-        const val = timeSteps[index];
+        // FIX: Force index to be a rounded Integer. 
+        // iOS drag events sometimes report floats (e.g. 1.5) which causes array lookup to fail.
+        const i = Math.round(Number(index)); 
+        const val = timeSteps[i];
+
+        // Safety check: if val is undefined (glitch), do not update UI
+        if (val === undefined || val === null) return; 
+
         if (val < 1) {
              const seconds = Math.round(val * 60);
              document.getElementById('timeReadout').innerHTML = seconds + "<span style='font-size:0.4em'>SEC</span>";
@@ -449,9 +456,6 @@
     updateLabelFromIndex(slider.value);
     setInterval(pollWorkerHealth, 5000);   
     pollWorkerHealth(); 
-
-    // REMOVED: window.addEventListener('beforeunload', ...) 
-    // This allows the browser to close without killing the switch immediately.
   </script>
 </body>
 </html>
